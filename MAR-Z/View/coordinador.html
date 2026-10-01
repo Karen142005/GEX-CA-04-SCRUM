@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinador</title>
+</head>
+<body>
+    <h1>Coordinador</h1>
+    <h2>Bienvenido <span id="nombre">...</span></h2>
+    <button id="btn-salir">Cerrar Sesión</button>
+    <div>
+        <h1>Solicitudes</h1>
+        <label>Ordenar por
+            <select id="orden">
+                <option value="prioridad">Prioridad</option>
+                <option value="estado">Estado</option>
+                <option value="fecha">Fecha</option>
+            </select>
+        </label>
+        <ul id="lista-todas"></ul>
+        <p id="msg-coord"></p>
+    </div>
+
+    <script src="/js/main.js"></script>
+    <script>
+        initCoordinador();
+    </script>
+</body>
+</html>

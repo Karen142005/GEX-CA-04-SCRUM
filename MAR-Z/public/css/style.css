@@ -1,0 +1,26 @@
+body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f9f9f9; color: #333; }
+nav { display: flex; gap: 15px; margin-bottom: 20px; background: #fff; padding: 10px 15px; border-radius: 8px; }
+nav a { text-decoration: none; color: #0366d6; }
+nav a:hover { text-decoration: underline; }
+main { background: #fff; padding: 20px; border-radius: 8px; }
+footer { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px; color: #666; }
+ul { padding-left: 20px; }
+li { margin: 8px 0; }
+.roles-botones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.btn-rol, .btn {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #0366d6;
+  color: #fff;
+  cursor: pointer;
+}
+.btn-rol:hover, .btn:hover { background: #0256b5; }
+.tab-activa { outline: 2px solid #0256b5; outline-offset: 2px; }
+form label { display: block; margin: 10px 0; }
+form input[type="text"], form input[type="password"] {
+  display: block; width: 100%; max-width: 300px;
+  padding: 8px; margin-top: 4px; box-sizing: border-box;
+}

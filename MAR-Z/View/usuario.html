@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitante</title>
+</head>
+<body>
+    <h1>Solicitante</h1>
+    <h2>Bienvenido <span id="nombre">...</span></h2>
+    <button id="btn-salir">Cerrar Sesión</button>
+    <div>
+        <h1>¿Que desea hacer?</h1>
+        <div>
+            <button type="button" id="btn-crear">Crear Solicitud de Soporte</button>
+            <button type="button">Modificar Solicitud de Soporte</button>
+            <button type="button">Cancelar Solicitud de Soporte</button>
+            <button type="button" id="btn-historial">Ver Historial de Solicitudes</button>
+        </div>
+    </div>
+    <div id="form-solicitud-wrap" hidden>
+        <h2>Nueva solicitud</h2>
+        <form id="form-solicitud">
+            <label>Título
+                <input type="text" name="titulo" required>
+            </label>
+            <label>Descripción
+                <textarea name="descripcion" required></textarea>
+            </label>
+            <label>Categoría
+                <input type="text" name="categoria" required>
+            </label>
+            <button type="submit">Guardar solicitud</button>
+        </form>
+        <p id="msg-sol"></p>
+    </div>
+    <div id="lista-sol-wrap" hidden>
+        <h2>Mis solicitudes</h2>
+        <ul id="lista-sol"></ul>
+    </div>
+    <div id="detalle-sol-wrap" hidden>
+        <h2>Detalle de la solicitud</h2>
+        <p><strong>Título:</strong> <span id="det-titulo"></span></p>
+        <p><strong>Descripción:</strong> <span id="det-descripcion"></span></p>
+        <p><strong>Categoría:</strong> <span id="det-categoria"></span></p>
+        <p><strong>Estado:</strong> <span id="det-estado"></span></p>
+        <p><strong>Creada:</strong> <span id="det-fecha"></span></p>
+        <p><strong>Última actualización:</strong> <span id="det-actualizada"></span></p>
+        <button type="button" id="btn-cerrar-det">Cerrar</button>
+    </div>
+
+    <script src="/js/main.js"></script>
+    <script>
+        initSolicitante();
+    </script>
+</body>
+</html>

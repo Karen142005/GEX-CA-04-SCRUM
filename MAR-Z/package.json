@@ -1,0 +1,16 @@
+{
+  "name": "mar-z",
+  "version": "1.0.0",
+  "description": "Sitio web MVC basico con Node.js y Express",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^4.22.3",
+    "express-session": "^1.19.0",
+    "pg": "^8.23.1"
+  }
+}
