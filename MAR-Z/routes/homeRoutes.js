@@ -83,5 +83,6 @@ router.get('/api/notificaciones', pedirLogin, homeController.apiNotificaciones);
 // HU06: no hay rutas para editar ni borrar comentarios, a proposito
 router.post('/api/solicitudes/:id/comentarios', pedirLogin, soloAgenteApi, homeController.apiComentar);
 router.get('/api/solicitudes/:id/comentarios', pedirLogin, homeController.apiComentarios);
+router.put('/api/solicitudes/:id/estado', pedirLogin, soloAgenteApi, homeController.apiCambiarEstado);
 
 module.exports = router;

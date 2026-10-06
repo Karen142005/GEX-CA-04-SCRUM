@@ -234,6 +234,23 @@ exports.apiComentarios = async (req, res) => {
   }
 };
 
+// HU07: el agente cambia el estado de una solicitud asignada
+exports.apiCambiarEstado = async (req, res) => {
+  try {
+    const r = await SiteModel.cambiarEstado(req.params.id, (req.body || {}).estado, req.session.user.usuario);
+    if (r.error) {
+      let status = 400;
+      if (r.error === 'No existe') status = 404;
+      if (r.error.startsWith('Solo el agente')) status = 403;
+      return res.status(status).json({ error: r.error });
+    }
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    console.error('apiCambiarEstado:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // esto lo usa el js del navegador para los textos y los roles
 exports.apiPagina = (req, res) => {
   const pagina = SiteModel.getPagina(req.params.clave);

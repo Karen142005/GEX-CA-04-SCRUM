@@ -495,6 +495,22 @@ async function cargarAsignadas() {
         caja.hidden = !caja.hidden;
         if (!caja.hidden) verComentarios(s.id, subCom);
       };
+      // HU07: solo se ofrecen los estados permitidos desde el estado actual
+      if (s.siguientes.length > 0) {
+        const selEst = document.createElement('select');
+        s.siguientes.forEach(e => {
+          const op = document.createElement('option');
+          op.value = e;
+          op.textContent = e;
+          selEst.appendChild(op);
+        });
+        const btnEst = document.createElement('button');
+        btnEst.type = 'button';
+        btnEst.textContent = 'Cambiar estado';
+        btnEst.onclick = () => { cambiarEstado(s.id, selEst.value); };
+        li.appendChild(selEst);
+        li.appendChild(btnEst);
+      }
       li.appendChild(btnCom);
       li.appendChild(caja);
       ul.appendChild(li);
@@ -541,6 +557,27 @@ async function comentar(id, txt, ul) {
       msg.textContent = 'Comentario guardado en la solicitud #' + id + '.';
       txt.value = '';
       verComentarios(id, ul);
+    }
+  } catch (e) {
+    msg.textContent = 'Error de red.';
+  }
+}
+
+// HU07: el agente cambia el estado y se recarga su lista
+async function cambiarEstado(id, estado) {
+  const msg = document.getElementById('msg-agente');
+  try {
+    const res = await fetch('/api/solicitudes/' + id + '/estado', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado })
+    });
+    const out = await res.json();
+    if (!res.ok) {
+      msg.textContent = 'Error: ' + out.error;
+    } else {
+      msg.textContent = 'Solicitud #' + id + ' pasó de ' + out.anterior + ' a ' + out.nuevo + '.';
+      cargarAsignadas();
     }
   } catch (e) {
     msg.textContent = 'Error de red.';

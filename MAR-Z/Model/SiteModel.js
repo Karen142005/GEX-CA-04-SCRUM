@@ -2,6 +2,14 @@
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 
+// HU07: cambios de estado que puede hacer el agente
+// (Nuevo -> Asignada lo hace la asignacion; Resuelta -> Cerrada o Reabierta lo hace el solicitante)
+const TRANSICIONES_AGENTE = {
+  'Asignada': ['En progreso'],
+  'En progreso': ['Resuelta'],
+  'Reabierta': ['En progreso']
+};
+
 const paginas = {
   inicio: {
     titulo: 'Bienvenido a MAR-Z',
@@ -201,7 +209,7 @@ module.exports = {
       'SELECT id, titulo, descripcion, categoria, estado, prioridad, fecha_asignacion, asignado_por FROM solicitudes WHERE agente = $1 ORDER BY id DESC',
       [agente]
     );
-    return r.rows;
+    return r.rows.map(x => ({ ...x, siguientes: TRANSICIONES_AGENTE[x.estado] || [] }));
   },
 
   // HU05: avisos del usuario, los mas nuevos primero; al verlos quedan como leidos
@@ -257,6 +265,43 @@ module.exports = {
       [Number(id)]
     );
     return { lista: r.rows };
+  },
+
+  // HU07: el agente asignado cambia el estado, solo si la transicion esta permitida
+  // queda en el historial y, si se resuelve, se le avisa al solicitante
+  cambiarEstado: async (id, nuevo, agente) => {
+    const n = (nuevo || '').trim();
+    const cli = await pool.connect();
+    try {
+      await cli.query('BEGIN');
+      const s = await cli.query('SELECT estado, agente, propietario FROM solicitudes WHERE id = $1 FOR UPDATE', [Number(id)]);
+      if (!s.rows[0]) { await cli.query('ROLLBACK'); return { error: 'No existe' }; }
+      const { estado, propietario } = s.rows[0];
+      if (s.rows[0].agente !== agente) { await cli.query('ROLLBACK'); return { error: 'Solo el agente asignado puede cambiar el estado' }; }
+      const permitidos = TRANSICIONES_AGENTE[estado] || [];
+      if (!permitidos.includes(n)) {
+        await cli.query('ROLLBACK');
+        return { error: 'Transicion no permitida: de ' + estado + ' a ' + (n || '(vacio)') };
+      }
+      await cli.query('UPDATE solicitudes SET estado = $1, fecha_actualizacion = NOW() WHERE id = $2', [n, Number(id)]);
+      await cli.query(
+        'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+        [Number(id), 'estado', estado, n, agente]
+      );
+      if (n === 'Resuelta') {
+        await cli.query(
+          'INSERT INTO notificaciones (usuario, solicitud_id, mensaje) VALUES ($1, $2, $3)',
+          [propietario, Number(id), 'Tu solicitud #' + Number(id) + ' fue resuelta: confirmala o reabrela']
+        );
+      }
+      await cli.query('COMMIT');
+      return { anterior: estado, nuevo: n };
+    } catch (e) {
+      await cli.query('ROLLBACK');
+      throw e;
+    } finally {
+      cli.release();
+    }
   },
 
   // historial de cambios de una solicitud, lo mas nuevo primero
