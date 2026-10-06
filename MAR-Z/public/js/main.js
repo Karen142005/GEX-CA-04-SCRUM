@@ -134,6 +134,10 @@ async function initSolicitante() {
     window.location.href = '/';
   };
 
+  // cambio 1: si elige Alta aparecen justificacion y fecha objetivo
+  const selPri = document.getElementById('sol-prioridad');
+  selPri.onchange = () => { document.getElementById('campos-alta').hidden = selPri.value !== 'Alta'; };
+
   // el boton muestra o esconde el formulario
   const formWrap = document.getElementById('form-solicitud-wrap');
   document.getElementById('btn-crear').onclick = () => {
@@ -159,6 +163,7 @@ async function initSolicitante() {
       } else {
         msg.textContent = 'Solicitud #' + out.id + ' creada con estado Nuevo.';
         e.target.reset();
+        document.getElementById('campos-alta').hidden = true;
         // si el historial esta abierto se vuelve a cargar para que salga la nueva
         if (!document.getElementById('lista-sol-wrap').hidden) cargarHistorial();
       }
@@ -314,7 +319,11 @@ async function cargarTodas() {
     }
     lista.forEach(s => {
       const li = document.createElement('li');
-      li.textContent = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', ' + s.propietario + ', agente: ' + (s.agente || 'sin asignar') + ') ';
+      let texto = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', ' + s.propietario + ', agente: ' + (s.agente || 'sin asignar');
+      if (s.prioridad === 'Alta' && s.fecha_objetivo) {
+        texto += ', objetivo: ' + s.fecha_objetivo + ', motivo: ' + s.justificacion;
+      }
+      li.textContent = texto + ') ';
       const sel = document.createElement('select');
       ['Alta', 'Media', 'Baja'].forEach(p => {
         const op = document.createElement('option');
@@ -326,7 +335,18 @@ async function cargarTodas() {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Guardar';
-      btn.onclick = () => { guardarPrioridad(s.id, sel.value); };
+      // cambio 1: campos para la prioridad Alta, solo se muestran si se elige Alta
+      const just = document.createElement('input');
+      just.type = 'text';
+      just.placeholder = 'Justificación';
+      const fec = document.createElement('input');
+      fec.type = 'date';
+      const camposAlta = document.createElement('span');
+      camposAlta.appendChild(just);
+      camposAlta.appendChild(fec);
+      camposAlta.hidden = true;
+      sel.onchange = () => { camposAlta.hidden = sel.value !== 'Alta'; };
+      btn.onclick = () => { guardarPrioridad(s.id, sel.value, just.value, fec.value); };
       const btnHis = document.createElement('button');
       btnHis.type = 'button';
       btnHis.textContent = 'Historial';
@@ -354,6 +374,7 @@ async function cargarTodas() {
       btnAsig.textContent = 'Asignar';
       btnAsig.onclick = () => { asignar(s.id, selAg.value); };
       li.appendChild(sel);
+      li.appendChild(camposAlta);
       li.appendChild(btn);
       li.appendChild(selAg);
       li.appendChild(btnAsig);
@@ -379,13 +400,13 @@ async function cargarTodas() {
 }
 
 // guarda la prioridad nueva y vuelve a cargar la lista
-async function guardarPrioridad(id, prioridad) {
+async function guardarPrioridad(id, prioridad, justificacion, fecha_objetivo) {
   const msg = document.getElementById('msg-coord');
   try {
     const res = await fetch('/api/solicitudes/' + id + '/prioridad', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prioridad })
+      body: JSON.stringify({ prioridad, justificacion, fecha_objetivo })
     });
     const out = await res.json();
     if (!res.ok) {

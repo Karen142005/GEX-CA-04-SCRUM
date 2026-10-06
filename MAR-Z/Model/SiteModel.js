@@ -10,6 +10,18 @@ const TRANSICIONES_AGENTE = {
   'Reabierta': ['En progreso']
 };
 
+// cambio 1: si la prioridad es Alta se exige justificacion y una fecha objetivo valida (hoy o despues)
+function validarAlta(justificacion, fechaObjetivo) {
+  const j = (justificacion || '').trim();
+  const f = (fechaObjetivo || '').trim();
+  if (!j || !f) return { error: 'La prioridad Alta requiere justificacion y fecha objetivo' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f) || isNaN(new Date(f + 'T00:00:00'))) return { error: 'Fecha objetivo invalida' };
+  const hoy = new Date();
+  const hoyTxt = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
+  if (f < hoyTxt) return { error: 'La fecha objetivo no puede estar en el pasado' };
+  return { justificacion: j, fechaObjetivo: f };
+}
+
 const paginas = {
   inicio: {
     titulo: 'Bienvenido a MAR-Z',
@@ -85,14 +97,25 @@ module.exports = {
   },
 
   // guarda la solicitud, el id y la fecha los pone la bd y el estado nace Nuevo
-  crearSolicitud: async ({ titulo, descripcion, categoria, propietario }) => {
+  // cambio 1: se puede elegir prioridad; si es Alta pide justificacion y fecha objetivo
+  crearSolicitud: async ({ titulo, descripcion, categoria, propietario, prioridad, justificacion, fecha_objetivo }) => {
     const t = (titulo || '').trim();
     const d = (descripcion || '').trim();
     const c = (categoria || '').trim();
     if (!t || !d || !c || !propietario) return { error: 'Faltan datos' };
+    const p = prioridad || 'Media';
+    if (!['Alta', 'Media', 'Baja'].includes(p)) return { error: 'Prioridad invalida' };
+    let j = null;
+    let f = null;
+    if (p === 'Alta') {
+      const v = validarAlta(justificacion, fecha_objetivo);
+      if (v.error) return v;
+      j = v.justificacion;
+      f = v.fechaObjetivo;
+    }
     const r = await pool.query(
-      'INSERT INTO solicitudes (titulo, descripcion, categoria, propietario) VALUES ($1, $2, $3, $4) RETURNING id, fecha, estado',
-      [t, d, c, propietario]
+      'INSERT INTO solicitudes (titulo, descripcion, categoria, propietario, prioridad, justificacion, fecha_objetivo) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, fecha, estado',
+      [t, d, c, propietario, p, j, f]
     );
     return r.rows[0];
   },
@@ -124,26 +147,56 @@ module.exports = {
     if (orden === 'estado') por = 'estado, id DESC';
     if (orden === 'fecha') por = 'fecha DESC';
     const r = await pool.query(
-      'SELECT id, titulo, categoria, estado, prioridad, fecha, fecha_actualizacion, propietario, agente FROM solicitudes ORDER BY ' + por
+      'SELECT id, titulo, categoria, estado, prioridad, justificacion, to_char(fecha_objetivo, \'YYYY-MM-DD\') AS fecha_objetivo, fecha, fecha_actualizacion, propietario, agente FROM solicitudes ORDER BY ' + por
     );
     return r.rows;
   },
 
   // cambia la prioridad y lo anota en el historial para que quede trazable
-  cambiarPrioridad: async (id, prioridad, usuario) => {
+  // cambio 1: si pasa a Alta pide justificacion y fecha objetivo, y tambien quedan en el historial
+  // todo va en una transaccion: o se guarda todo o no se guarda nada
+  cambiarPrioridad: async (id, prioridad, usuario, justificacion, fechaObjetivo) => {
     if (!['Alta', 'Media', 'Baja'].includes(prioridad)) return { error: 'Prioridad invalida' };
-    const actual = await pool.query('SELECT prioridad FROM solicitudes WHERE id = $1', [Number(id)]);
-    if (!actual.rows[0]) return { error: 'No existe' };
-    const anterior = actual.rows[0].prioridad;
-    await pool.query(
-      'UPDATE solicitudes SET prioridad = $1, fecha_actualizacion = NOW() WHERE id = $2',
-      [prioridad, Number(id)]
-    );
-    await pool.query(
-      'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
-      [Number(id), 'prioridad', anterior, prioridad, usuario]
-    );
-    return { anterior, nueva: prioridad };
+    let v = null;
+    if (prioridad === 'Alta') {
+      v = validarAlta(justificacion, fechaObjetivo);
+      if (v.error) return v;
+    }
+    const cli = await pool.connect();
+    try {
+      await cli.query('BEGIN');
+      const actual = await cli.query('SELECT prioridad FROM solicitudes WHERE id = $1 FOR UPDATE', [Number(id)]);
+      if (!actual.rows[0]) { await cli.query('ROLLBACK'); return { error: 'No existe' }; }
+      const anterior = actual.rows[0].prioridad;
+      if (v) {
+        await cli.query(
+          'UPDATE solicitudes SET prioridad = $1, justificacion = $2, fecha_objetivo = $3, fecha_actualizacion = NOW() WHERE id = $4',
+          [prioridad, v.justificacion, v.fechaObjetivo, Number(id)]
+        );
+      } else {
+        await cli.query(
+          'UPDATE solicitudes SET prioridad = $1, fecha_actualizacion = NOW() WHERE id = $2',
+          [prioridad, Number(id)]
+        );
+      }
+      await cli.query(
+        'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+        [Number(id), 'prioridad', anterior, prioridad, usuario]
+      );
+      if (v) {
+        await cli.query(
+          'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+          [Number(id), 'justificacion', null, v.justificacion + ' (fecha objetivo: ' + v.fechaObjetivo + ')', usuario]
+        );
+      }
+      await cli.query('COMMIT');
+      return { anterior, nueva: prioridad };
+    } catch (e) {
+      await cli.query('ROLLBACK');
+      throw e;
+    } finally {
+      cli.release();
+    }
   },
 
   // HU05: agentes que se pueden asignar (rol 2 y activos)

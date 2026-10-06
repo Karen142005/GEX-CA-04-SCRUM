@@ -132,7 +132,8 @@ exports.apiTodasSolicitudes = async (req, res) => {
 // cambia la prioridad, solo coordinador (lo revisa el middleware)
 exports.apiPriorizar = async (req, res) => {
   try {
-    const r = await SiteModel.cambiarPrioridad(req.params.id, req.body.prioridad, req.session.user.usuario);
+    const b = req.body || {};
+    const r = await SiteModel.cambiarPrioridad(req.params.id, b.prioridad, req.session.user.usuario, b.justificacion, b.fecha_objetivo);
     if (r.error) {
       const status = r.error === 'No existe' ? 404 : 400;
       return res.status(status).json({ error: r.error });
