@@ -251,6 +251,22 @@ exports.apiCambiarEstado = async (req, res) => {
   }
 };
 
+// HU08: el solicitante confirma o reabre su solicitud resuelta
+exports.apiCierre = async (req, res) => {
+  try {
+    const b = req.body || {};
+    const r = await SiteModel.cerrarOReabrir(req.params.id, b.accion, b.motivo, req.session.user.usuario);
+    if (r.error) {
+      const status = r.error === 'No existe' ? 404 : 400;
+      return res.status(status).json({ error: r.error });
+    }
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    console.error('apiCierre:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // esto lo usa el js del navegador para los textos y los roles
 exports.apiPagina = (req, res) => {
   const pagina = SiteModel.getPagina(req.params.clave);

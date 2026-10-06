@@ -23,6 +23,14 @@ function soloSolicitanteApi(req, res, next) {
   next();
 }
 
+// HU08: confirmar o reabrir es solo del solicitante
+function soloSolicitanteCierre(req, res, next) {
+  if (Number(req.session.user.rolId) !== 1) {
+    return res.status(403).json({ error: 'Solo el solicitante confirma o reabre' });
+  }
+  next();
+}
+
 // solo el coordinador entra a su pagina
 function soloCoordinador(req, res, next) {
   if (Number(req.session.user.rolId) !== 3) return res.redirect('/');
@@ -84,5 +92,6 @@ router.get('/api/notificaciones', pedirLogin, homeController.apiNotificaciones);
 router.post('/api/solicitudes/:id/comentarios', pedirLogin, soloAgenteApi, homeController.apiComentar);
 router.get('/api/solicitudes/:id/comentarios', pedirLogin, homeController.apiComentarios);
 router.put('/api/solicitudes/:id/estado', pedirLogin, soloAgenteApi, homeController.apiCambiarEstado);
+router.put('/api/solicitudes/:id/cierre', pedirLogin, soloSolicitanteCierre, homeController.apiCierre);
 
 module.exports = router;

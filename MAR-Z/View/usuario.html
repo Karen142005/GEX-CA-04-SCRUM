@@ -10,6 +10,10 @@
     <h2>Bienvenido <span id="nombre">...</span></h2>
     <button id="btn-salir">Cerrar Sesión</button>
     <div>
+        <h2>Avisos</h2>
+        <ul id="lista-avisos"></ul>
+    </div>
+    <div>
         <h1>¿Que desea hacer?</h1>
         <div>
             <button type="button" id="btn-crear">Crear Solicitud de Soporte</button>
@@ -46,6 +50,14 @@
         <p><strong>Estado:</strong> <span id="det-estado"></span></p>
         <p><strong>Creada:</strong> <span id="det-fecha"></span></p>
         <p><strong>Última actualización:</strong> <span id="det-actualizada"></span></p>
+        <div id="det-cierre" hidden>
+            <h3>¿La solución te sirvió?</h3>
+            <button type="button" id="btn-confirmar">Confirmar solución</button>
+            <label>Motivo para reabrir
+                <textarea id="motivo-reabrir"></textarea>
+            </label>
+            <button type="button" id="btn-reabrir">Reabrir</button>
+        </div>
         <h3>Comentarios del agente</h3>
         <ul id="det-comentarios"></ul>
         <button type="button" id="btn-cerrar-det">Cerrar</button>

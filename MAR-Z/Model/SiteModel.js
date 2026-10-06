@@ -304,6 +304,54 @@ module.exports = {
     }
   },
 
+  // HU08: el solicitante acepta la solucion (Resuelta -> Cerrada) o la reabre con motivo (Resuelta -> Reabierta)
+  // todo queda en el historial y, si se reabre, se le avisa al agente
+  cerrarOReabrir: async (id, accion, motivo, propietario) => {
+    const m = (motivo || '').trim();
+    if (!['confirmar', 'reabrir'].includes(accion)) return { error: 'Accion invalida' };
+    if (accion === 'reabrir' && !m) return { error: 'Para reabrir debes escribir el motivo' };
+    const cli = await pool.connect();
+    try {
+      await cli.query('BEGIN');
+      const s = await cli.query('SELECT estado, agente, propietario FROM solicitudes WHERE id = $1 FOR UPDATE', [Number(id)]);
+      if (!s.rows[0] || s.rows[0].propietario !== propietario) { await cli.query('ROLLBACK'); return { error: 'No existe' }; }
+      if (s.rows[0].estado !== 'Resuelta') {
+        await cli.query('ROLLBACK');
+        return { error: 'Solo se puede confirmar o reabrir una solicitud Resuelta' };
+      }
+      const nuevo = accion === 'confirmar' ? 'Cerrada' : 'Reabierta';
+      await cli.query('UPDATE solicitudes SET estado = $1, fecha_actualizacion = NOW() WHERE id = $2', [nuevo, Number(id)]);
+      await cli.query(
+        'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+        [Number(id), 'estado', 'Resuelta', nuevo, propietario]
+      );
+      if (accion === 'confirmar') {
+        await cli.query(
+          'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+          [Number(id), 'confirmacion', null, 'Solucion aceptada', propietario]
+        );
+      } else {
+        await cli.query(
+          'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+          [Number(id), 'reapertura', null, m, propietario]
+        );
+        if (s.rows[0].agente) {
+          await cli.query(
+            'INSERT INTO notificaciones (usuario, solicitud_id, mensaje) VALUES ($1, $2, $3)',
+            [s.rows[0].agente, Number(id), 'La solicitud #' + Number(id) + ' fue reabierta: ' + m]
+          );
+        }
+      }
+      await cli.query('COMMIT');
+      return { estado: nuevo };
+    } catch (e) {
+      await cli.query('ROLLBACK');
+      throw e;
+    } finally {
+      cli.release();
+    }
+  },
+
   // historial de cambios de una solicitud, lo mas nuevo primero
   historialSolicitud: async (id) => {
     const r = await pool.query(

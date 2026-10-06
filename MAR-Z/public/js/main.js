@@ -179,6 +179,38 @@ async function initSolicitante() {
   document.getElementById('btn-cerrar-det').onclick = () => {
     document.getElementById('detalle-sol-wrap').hidden = true;
   };
+
+  // HU08: confirmar o reabrir la solicitud que esta abierta en el detalle
+  document.getElementById('btn-confirmar').onclick = () => { cierre('confirmar'); };
+  document.getElementById('btn-reabrir').onclick = () => { cierre('reabrir'); };
+
+  cargarAvisos();
+}
+
+let detalleId = null;
+
+// HU08: manda la confirmacion o la reapertura con su motivo
+async function cierre(accion) {
+  const msg = document.getElementById('msg-sol');
+  const motivo = document.getElementById('motivo-reabrir').value;
+  try {
+    const res = await fetch('/api/solicitudes/' + detalleId + '/cierre', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion, motivo })
+    });
+    const out = await res.json();
+    if (!res.ok) {
+      msg.textContent = 'Error: ' + out.error;
+    } else {
+      msg.textContent = 'Solicitud #' + detalleId + ' quedó ' + out.estado + '.';
+      document.getElementById('motivo-reabrir').value = '';
+      verDetalle(detalleId);
+      if (!document.getElementById('lista-sol-wrap').hidden) cargarHistorial();
+    }
+  } catch (e) {
+    msg.textContent = 'Error de red.';
+  }
 }
 
 // trae solo mis solicitudes y a cada una le pone su boton de ver
@@ -222,6 +254,9 @@ async function verDetalle(id) {
     document.getElementById('det-actualizada').textContent = new Date(s.fecha_actualizacion).toLocaleString();
     document.getElementById('detalle-sol-wrap').hidden = false;
     verComentarios(s.id, document.getElementById('det-comentarios'));
+    // HU08: solo se puede confirmar o reabrir si esta Resuelta
+    detalleId = s.id;
+    document.getElementById('det-cierre').hidden = s.estado !== 'Resuelta';
   } catch (e) {
     document.getElementById('msg-sol').textContent = 'No se pudo abrir el detalle.';
   }
