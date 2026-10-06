@@ -154,6 +154,56 @@ exports.apiHistorial = async (req, res) => {
   }
 };
 
+// pagina del agente
+exports.agente = (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'View', 'agente.html'));
+};
+
+// HU05: lista de agentes activos para el coordinador
+exports.apiAgentes = async (req, res) => {
+  try {
+    res.json(await SiteModel.agentesActivos());
+  } catch (e) {
+    console.error('apiAgentes:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
+// HU05: el coordinador asigna una solicitud a un agente
+exports.apiAsignar = async (req, res) => {
+  try {
+    const r = await SiteModel.asignarSolicitud(req.params.id, (req.body || {}).agente, req.session.user.usuario);
+    if (r.error) {
+      const status = r.error === 'No existe' ? 404 : 400;
+      return res.status(status).json({ error: r.error });
+    }
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    console.error('apiAsignar:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
+// HU05: solicitudes asignadas al agente que entro
+exports.apiAsignadas = async (req, res) => {
+  try {
+    res.json(await SiteModel.misAsignadas(req.session.user.usuario));
+  } catch (e) {
+    console.error('apiAsignadas:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
+// HU05: avisos del usuario que entro
+exports.apiNotificaciones = async (req, res) => {
+  try {
+    res.json(await SiteModel.misNotificaciones(req.session.user.usuario));
+  } catch (e) {
+    console.error('apiNotificaciones:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // esto lo usa el js del navegador para los textos y los roles
 exports.apiPagina = (req, res) => {
   const pagina = SiteModel.getPagina(req.params.clave);

@@ -116,7 +116,7 @@ module.exports = {
     if (orden === 'estado') por = 'estado, id DESC';
     if (orden === 'fecha') por = 'fecha DESC';
     const r = await pool.query(
-      'SELECT id, titulo, categoria, estado, prioridad, fecha, fecha_actualizacion, propietario FROM solicitudes ORDER BY ' + por
+      'SELECT id, titulo, categoria, estado, prioridad, fecha, fecha_actualizacion, propietario, agente FROM solicitudes ORDER BY ' + por
     );
     return r.rows;
   },
@@ -136,6 +136,82 @@ module.exports = {
       [Number(id), 'prioridad', anterior, prioridad, usuario]
     );
     return { anterior, nueva: prioridad };
+  },
+
+  // HU05: agentes que se pueden asignar (rol 2 y activos)
+  agentesActivos: async () => {
+    const r = await pool.query(
+      'SELECT nombre_usuario FROM usuarios WHERE id_tipo = 2 AND activo = TRUE ORDER BY nombre_usuario'
+    );
+    return r.rows.map(a => a.nombre_usuario);
+  },
+
+  // HU05: asigna la solicitud a un agente activo, guarda quien y cuando, y le deja un aviso
+  // todo va en una transaccion: o se guarda todo o no se guarda nada
+  asignarSolicitud: async (id, agente, coordinador) => {
+    const nombre = (agente || '').trim();
+    if (!nombre) return { error: 'Falta el agente' };
+    const cli = await pool.connect();
+    try {
+      await cli.query('BEGIN');
+      const s = await cli.query('SELECT estado, agente FROM solicitudes WHERE id = $1 FOR UPDATE', [Number(id)]);
+      if (!s.rows[0]) { await cli.query('ROLLBACK'); return { error: 'No existe' }; }
+      const { estado, agente: anterior } = s.rows[0];
+      if (['Resuelta', 'Cerrada'].includes(estado)) {
+        await cli.query('ROLLBACK');
+        return { error: 'No se puede asignar una solicitud ' + estado };
+      }
+      const a = await cli.query(
+        'SELECT 1 FROM usuarios WHERE nombre_usuario = $1 AND id_tipo = 2 AND activo = TRUE', [nombre]
+      );
+      if (!a.rows[0]) { await cli.query('ROLLBACK'); return { error: 'El agente no existe o no esta activo' }; }
+      if (anterior === nombre) { await cli.query('ROLLBACK'); return { error: 'Ya esta asignada a ese agente' }; }
+      const nuevoEstado = estado === 'Nuevo' ? 'Asignada' : estado;
+      await cli.query(
+        'UPDATE solicitudes SET agente = $1, asignado_por = $2, fecha_asignacion = NOW(), estado = $3, fecha_actualizacion = NOW() WHERE id = $4',
+        [nombre, coordinador, nuevoEstado, Number(id)]
+      );
+      await cli.query(
+        'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+        [Number(id), 'agente', anterior || 'Sin asignar', nombre, coordinador]
+      );
+      if (nuevoEstado !== estado) {
+        await cli.query(
+          'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+          [Number(id), 'estado', estado, nuevoEstado, coordinador]
+        );
+      }
+      await cli.query(
+        'INSERT INTO notificaciones (usuario, solicitud_id, mensaje) VALUES ($1, $2, $3)',
+        [nombre, Number(id), 'Te asignaron la solicitud #' + Number(id)]
+      );
+      await cli.query('COMMIT');
+      return { agente: nombre, anterior: anterior || 'Sin asignar', estado: nuevoEstado };
+    } catch (e) {
+      await cli.query('ROLLBACK');
+      throw e;
+    } finally {
+      cli.release();
+    }
+  },
+
+  // HU05: las solicitudes que tiene asignadas el agente
+  misAsignadas: async (agente) => {
+    const r = await pool.query(
+      'SELECT id, titulo, descripcion, categoria, estado, prioridad, fecha_asignacion, asignado_por FROM solicitudes WHERE agente = $1 ORDER BY id DESC',
+      [agente]
+    );
+    return r.rows;
+  },
+
+  // HU05: avisos del usuario, los mas nuevos primero; al verlos quedan como leidos
+  misNotificaciones: async (usuario) => {
+    const r = await pool.query(
+      'SELECT id, solicitud_id, mensaje, leida, fecha FROM notificaciones WHERE usuario = $1 ORDER BY id DESC LIMIT 20',
+      [usuario]
+    );
+    await pool.query('UPDATE notificaciones SET leida = TRUE WHERE usuario = $1 AND leida = FALSE', [usuario]);
+    return r.rows;
   },
 
   // historial de cambios de una solicitud, lo mas nuevo primero

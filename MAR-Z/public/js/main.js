@@ -98,6 +98,7 @@ async function initAuthPage() {
         // cada rol va a su pagina, si no tiene va a la pagina del rol
         let destino = '/roles/' + out.rolId;
         if (out.rolId === 1) destino = '/solicitante';
+        if (out.rolId === 2) destino = '/agente';
         if (out.rolId === 3) destino = '/coordinador';
         window.location.href = destino;
         return;
@@ -250,8 +251,17 @@ async function initCoordinador() {
   };
 
   document.getElementById('orden').onchange = () => { cargarTodas(); };
+  // los agentes activos se piden una vez para armar el selector de asignar
+  try {
+    const r = await fetch('/api/agentes');
+    agentesActivos = r.ok ? await r.json() : [];
+  } catch (e) {
+    agentesActivos = [];
+  }
   cargarTodas();
 }
+
+let agentesActivos = [];
 
 // trae todas ordenadas como se pida y a cada una le deja cambiar la prioridad
 async function cargarTodas() {
@@ -268,7 +278,7 @@ async function cargarTodas() {
     }
     lista.forEach(s => {
       const li = document.createElement('li');
-      li.textContent = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', ' + s.propietario + ') ';
+      li.textContent = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', ' + s.propietario + ', agente: ' + (s.agente || 'sin asignar') + ') ';
       const sel = document.createElement('select');
       ['Alta', 'Media', 'Baja'].forEach(p => {
         const op = document.createElement('option');
@@ -290,8 +300,27 @@ async function cargarTodas() {
         sub.hidden = !sub.hidden;
         if (!sub.hidden) verHistorial(s.id, sub);
       };
+      // HU05: selector de agente activo y boton para asignar
+      const selAg = document.createElement('select');
+      const vacio = document.createElement('option');
+      vacio.value = '';
+      vacio.textContent = 'Agente...';
+      selAg.appendChild(vacio);
+      agentesActivos.forEach(a => {
+        const op = document.createElement('option');
+        op.value = a;
+        op.textContent = a;
+        if (a === s.agente) op.selected = true;
+        selAg.appendChild(op);
+      });
+      const btnAsig = document.createElement('button');
+      btnAsig.type = 'button';
+      btnAsig.textContent = 'Asignar';
+      btnAsig.onclick = () => { asignar(s.id, selAg.value); };
       li.appendChild(sel);
       li.appendChild(btn);
+      li.appendChild(selAg);
+      li.appendChild(btnAsig);
       li.appendChild(btnHis);
       li.appendChild(sub);
       ul.appendChild(li);
@@ -336,6 +365,103 @@ async function verHistorial(id, ul) {
     lista.forEach(h => {
       const li = document.createElement('li');
       li.textContent = h.campo + ': ' + h.valor_anterior + ' pasa a ' + h.valor_nuevo + ' (por ' + h.usuario + ', ' + new Date(h.fecha).toLocaleString() + ')';
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    ul.innerHTML = '<li>Error al cargar.</li>';
+  }
+}
+
+// HU05: asigna la solicitud al agente elegido
+async function asignar(id, agente) {
+  const msg = document.getElementById('msg-coord');
+  if (!agente) {
+    msg.textContent = 'Error: elige un agente.';
+    return;
+  }
+  try {
+    const res = await fetch('/api/solicitudes/' + id + '/asignar', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agente })
+    });
+    const out = await res.json();
+    if (!res.ok) {
+      msg.textContent = 'Error: ' + out.error;
+    } else {
+      msg.textContent = 'Solicitud #' + id + ' asignada a ' + out.agente + ' (antes ' + out.anterior + ').';
+      cargarTodas();
+    }
+  } catch (e) {
+    msg.textContent = 'Error de red.';
+  }
+}
+
+// pagina del agente, solo entra el rol 2, si no manda al inicio
+async function initAgente() {
+  try {
+    const res = await fetch('/api/yo');
+    if (!res.ok) {
+      window.location.href = '/';
+      return;
+    }
+    const yo = await res.json();
+    if (yo.rolId !== 2) {
+      window.location.href = '/';
+      return;
+    }
+    document.getElementById('nombre').textContent = yo.usuario;
+  } catch (e) {
+    window.location.href = '/';
+    return;
+  }
+
+  document.getElementById('btn-salir').onclick = async () => {
+    await fetch('/api/salir', { method: 'POST' });
+    window.location.href = '/';
+  };
+
+  cargarAvisos();
+  cargarAsignadas();
+}
+
+// HU05: avisos dentro de la aplicacion
+async function cargarAvisos() {
+  const ul = document.getElementById('lista-avisos');
+  try {
+    const res = await fetch('/api/notificaciones');
+    if (!res.ok) throw new Error();
+    const lista = await res.json();
+    ul.innerHTML = '';
+    if (lista.length === 0) {
+      ul.innerHTML = '<li>No tienes avisos.</li>';
+      return;
+    }
+    lista.forEach(n => {
+      const li = document.createElement('li');
+      li.textContent = (n.leida ? '' : '(nuevo) ') + n.mensaje + ' - ' + new Date(n.fecha).toLocaleString();
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    ul.innerHTML = '<li>Error al cargar.</li>';
+  }
+}
+
+// HU05: solicitudes asignadas al agente
+async function cargarAsignadas() {
+  const ul = document.getElementById('lista-asignadas');
+  try {
+    const res = await fetch('/api/asignadas');
+    if (!res.ok) throw new Error();
+    const lista = await res.json();
+    ul.innerHTML = '';
+    if (lista.length === 0) {
+      ul.innerHTML = '<li>No tienes solicitudes asignadas.</li>';
+      return;
+    }
+    lista.forEach(s => {
+      const li = document.createElement('li');
+      li.textContent = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', prioridad ' + s.prioridad + ', asignada por ' + s.asignado_por + ' el ' + new Date(s.fecha_asignacion).toLocaleString() + ')';
       ul.appendChild(li);
     });
   } catch (e) {

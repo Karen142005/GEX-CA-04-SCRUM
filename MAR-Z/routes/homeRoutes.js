@@ -37,6 +37,20 @@ function soloCoordinadorApi(req, res, next) {
   next();
 }
 
+// solo el agente entra a su pagina
+function soloAgente(req, res, next) {
+  if (Number(req.session.user.rolId) !== 2) return res.redirect('/');
+  next();
+}
+
+// lo mismo pero para apis
+function soloAgenteApi(req, res, next) {
+  if (Number(req.session.user.rolId) !== 2) {
+    return res.status(403).json({ error: 'Solo el agente hace esto' });
+  }
+  next();
+}
+
 // las paginas
 router.get('/', homeController.index);
 router.get('/roles/:id', homeController.rolDetalle);
@@ -44,6 +58,7 @@ router.get('/roles/:id/login', homeController.loginPage);
 router.get('/roles/:id/registro', homeController.registroPage);
 router.get('/solicitante', pedirLogin, soloSolicitante, homeController.solicitante);
 router.get('/coordinador', pedirLogin, soloCoordinador, homeController.coordinador);
+router.get('/agente', pedirLogin, soloAgente, homeController.agente);
 
 // los datos en json que usa el main.js
 router.get('/api/pagina/:clave', homeController.apiPagina);
@@ -59,5 +74,11 @@ router.put('/api/solicitudes/:id/prioridad', pedirLogin, soloCoordinadorApi, hom
 router.get('/api/solicitudes/:id/historial', pedirLogin, soloCoordinadorApi, homeController.apiHistorial);
 router.get('/api/solicitudes', pedirLogin, soloSolicitanteApi, homeController.apiMisSolicitudes);
 router.get('/api/solicitudes/:id', pedirLogin, soloSolicitanteApi, homeController.apiDetalleSolicitud);
+
+// sprint 2
+router.get('/api/agentes', pedirLogin, soloCoordinadorApi, homeController.apiAgentes);
+router.put('/api/solicitudes/:id/asignar', pedirLogin, soloCoordinadorApi, homeController.apiAsignar);
+router.get('/api/asignadas', pedirLogin, soloAgenteApi, homeController.apiAsignadas);
+router.get('/api/notificaciones', pedirLogin, homeController.apiNotificaciones);
 
 module.exports = router;
