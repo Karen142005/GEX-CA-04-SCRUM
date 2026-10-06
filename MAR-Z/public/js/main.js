@@ -221,6 +221,7 @@ async function verDetalle(id) {
     document.getElementById('det-fecha').textContent = new Date(s.fecha).toLocaleString();
     document.getElementById('det-actualizada').textContent = new Date(s.fecha_actualizacion).toLocaleString();
     document.getElementById('detalle-sol-wrap').hidden = false;
+    verComentarios(s.id, document.getElementById('det-comentarios'));
   } catch (e) {
     document.getElementById('msg-sol').textContent = 'No se pudo abrir el detalle.';
   }
@@ -322,7 +323,19 @@ async function cargarTodas() {
       li.appendChild(selAg);
       li.appendChild(btnAsig);
       li.appendChild(btnHis);
+      // HU06: el coordinador puede leer los comentarios
+      const btnCom = document.createElement('button');
+      btnCom.type = 'button';
+      btnCom.textContent = 'Comentarios';
+      const subCom = document.createElement('ul');
+      subCom.hidden = true;
+      btnCom.onclick = () => {
+        subCom.hidden = !subCom.hidden;
+        if (!subCom.hidden) verComentarios(s.id, subCom);
+      };
+      li.appendChild(btnCom);
       li.appendChild(sub);
+      li.appendChild(subCom);
       ul.appendChild(li);
     });
   } catch (e) {
@@ -364,7 +377,7 @@ async function verHistorial(id, ul) {
     }
     lista.forEach(h => {
       const li = document.createElement('li');
-      li.textContent = h.campo + ': ' + h.valor_anterior + ' pasa a ' + h.valor_nuevo + ' (por ' + h.usuario + ', ' + new Date(h.fecha).toLocaleString() + ')';
+      li.textContent = h.campo + ': ' + (h.valor_anterior || '-') + ' pasa a ' + h.valor_nuevo + ' (por ' + h.usuario + ', ' + new Date(h.fecha).toLocaleString() + ')';
       ul.appendChild(li);
     });
   } catch (e) {
@@ -461,10 +474,75 @@ async function cargarAsignadas() {
     }
     lista.forEach(s => {
       const li = document.createElement('li');
-      li.textContent = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', prioridad ' + s.prioridad + ', asignada por ' + s.asignado_por + ' el ' + new Date(s.fecha_asignacion).toLocaleString() + ')';
+      li.textContent = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', prioridad ' + s.prioridad + ', asignada por ' + s.asignado_por + ' el ' + new Date(s.fecha_asignacion).toLocaleString() + ') ';
+      // HU06: comentarios de trabajo
+      const btnCom = document.createElement('button');
+      btnCom.type = 'button';
+      btnCom.textContent = 'Comentarios';
+      const caja = document.createElement('div');
+      caja.hidden = true;
+      const subCom = document.createElement('ul');
+      const txt = document.createElement('textarea');
+      txt.placeholder = 'Escribe el avance...';
+      const btnEnviar = document.createElement('button');
+      btnEnviar.type = 'button';
+      btnEnviar.textContent = 'Comentar';
+      btnEnviar.onclick = () => { comentar(s.id, txt, subCom); };
+      caja.appendChild(subCom);
+      caja.appendChild(txt);
+      caja.appendChild(btnEnviar);
+      btnCom.onclick = () => {
+        caja.hidden = !caja.hidden;
+        if (!caja.hidden) verComentarios(s.id, subCom);
+      };
+      li.appendChild(btnCom);
+      li.appendChild(caja);
       ul.appendChild(li);
     });
   } catch (e) {
     ul.innerHTML = '<li>Error al cargar.</li>';
+  }
+}
+
+// HU06: muestra los comentarios de una solicitud (autor y fecha los pone el sistema)
+async function verComentarios(id, ul) {
+  try {
+    const res = await fetch('/api/solicitudes/' + id + '/comentarios');
+    if (!res.ok) throw new Error();
+    const lista = await res.json();
+    ul.innerHTML = '';
+    if (lista.length === 0) {
+      ul.innerHTML = '<li>Sin comentarios todavía.</li>';
+      return;
+    }
+    lista.forEach(c => {
+      const li = document.createElement('li');
+      li.textContent = c.autor + ' (' + new Date(c.fecha).toLocaleString() + '): ' + c.texto;
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    ul.innerHTML = '<li>Error al cargar.</li>';
+  }
+}
+
+// HU06: el agente guarda un comentario; una vez guardado no se puede editar
+async function comentar(id, txt, ul) {
+  const msg = document.getElementById('msg-agente');
+  try {
+    const res = await fetch('/api/solicitudes/' + id + '/comentarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: txt.value })
+    });
+    const out = await res.json();
+    if (!res.ok) {
+      msg.textContent = 'Error: ' + out.error;
+    } else {
+      msg.textContent = 'Comentario guardado en la solicitud #' + id + '.';
+      txt.value = '';
+      verComentarios(id, ul);
+    }
+  } catch (e) {
+    msg.textContent = 'Error de red.';
   }
 }

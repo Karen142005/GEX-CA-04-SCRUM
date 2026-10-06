@@ -80,5 +80,8 @@ router.get('/api/agentes', pedirLogin, soloCoordinadorApi, homeController.apiAge
 router.put('/api/solicitudes/:id/asignar', pedirLogin, soloCoordinadorApi, homeController.apiAsignar);
 router.get('/api/asignadas', pedirLogin, soloAgenteApi, homeController.apiAsignadas);
 router.get('/api/notificaciones', pedirLogin, homeController.apiNotificaciones);
+// HU06: no hay rutas para editar ni borrar comentarios, a proposito
+router.post('/api/solicitudes/:id/comentarios', pedirLogin, soloAgenteApi, homeController.apiComentar);
+router.get('/api/solicitudes/:id/comentarios', pedirLogin, homeController.apiComentarios);
 
 module.exports = router;

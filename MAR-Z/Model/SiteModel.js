@@ -214,6 +214,51 @@ module.exports = {
     return r.rows;
   },
 
+  // HU06: el agente asignado deja un comentario; autor y fecha los pone el sistema
+  // queda tambien en el historial para la trazabilidad
+  agregarComentario: async (id, texto, agente) => {
+    const t = (texto || '').trim();
+    if (!t) return { error: 'El comentario no puede estar vacio' };
+    const s = await pool.query('SELECT agente FROM solicitudes WHERE id = $1', [Number(id)]);
+    if (!s.rows[0]) return { error: 'No existe' };
+    if (s.rows[0].agente !== agente) return { error: 'Solo el agente asignado puede comentar' };
+    const cli = await pool.connect();
+    try {
+      await cli.query('BEGIN');
+      const c = await cli.query(
+        'INSERT INTO comentarios (solicitud_id, autor, texto) VALUES ($1, $2, $3) RETURNING id, autor, texto, fecha',
+        [Number(id), agente, t]
+      );
+      await cli.query(
+        'INSERT INTO historial_cambios (solicitud_id, campo, valor_anterior, valor_nuevo, usuario) VALUES ($1, $2, $3, $4, $5)',
+        [Number(id), 'comentario', null, 'Comentario #' + c.rows[0].id, agente]
+      );
+      await cli.query('UPDATE solicitudes SET fecha_actualizacion = NOW() WHERE id = $1', [Number(id)]);
+      await cli.query('COMMIT');
+      return c.rows[0];
+    } catch (e) {
+      await cli.query('ROLLBACK');
+      throw e;
+    } finally {
+      cli.release();
+    }
+  },
+
+  // HU06: comentarios de una solicitud; solo los ve quien tiene que ver con ella
+  // solicitante: si es suya, agente: si la tiene asignada, coordinador y auditor: todas
+  comentariosSolicitud: async (id, usuario, rolId) => {
+    const s = await pool.query('SELECT propietario, agente FROM solicitudes WHERE id = $1', [Number(id)]);
+    if (!s.rows[0]) return { error: 'No existe' };
+    const rol = Number(rolId);
+    if (rol === 1 && s.rows[0].propietario !== usuario) return { error: 'No existe' };
+    if (rol === 2 && s.rows[0].agente !== usuario) return { error: 'No existe' };
+    const r = await pool.query(
+      'SELECT id, autor, texto, fecha FROM comentarios WHERE solicitud_id = $1 ORDER BY id',
+      [Number(id)]
+    );
+    return { lista: r.rows };
+  },
+
   // historial de cambios de una solicitud, lo mas nuevo primero
   historialSolicitud: async (id) => {
     const r = await pool.query(

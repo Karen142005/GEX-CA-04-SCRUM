@@ -204,6 +204,36 @@ exports.apiNotificaciones = async (req, res) => {
   }
 };
 
+// HU06: el agente asignado agrega un comentario
+exports.apiComentar = async (req, res) => {
+  try {
+    const r = await SiteModel.agregarComentario(req.params.id, (req.body || {}).texto, req.session.user.usuario);
+    if (r.error) {
+      let status = 400;
+      if (r.error === 'No existe') status = 404;
+      if (r.error === 'Solo el agente asignado puede comentar') status = 403;
+      return res.status(status).json({ error: r.error });
+    }
+    res.status(201).json({ ok: true, ...r });
+  } catch (e) {
+    console.error('apiComentar:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
+// HU06: comentarios de una solicitud, segun el rol del que pregunta
+exports.apiComentarios = async (req, res) => {
+  try {
+    const u = req.session.user;
+    const r = await SiteModel.comentariosSolicitud(req.params.id, u.usuario, u.rolId);
+    if (r.error) return res.status(404).json({ error: r.error });
+    res.json(r.lista);
+  } catch (e) {
+    console.error('apiComentarios:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // esto lo usa el js del navegador para los textos y los roles
 exports.apiPagina = (req, res) => {
   const pagina = SiteModel.getPagina(req.params.clave);
