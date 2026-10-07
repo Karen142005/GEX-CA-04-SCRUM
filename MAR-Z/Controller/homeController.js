@@ -268,6 +268,23 @@ exports.apiCierre = async (req, res) => {
   }
 };
 
+// pagina del auditor
+exports.auditor = (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'View', 'auditor.html'));
+};
+
+// HU11: historial para el auditor (solo lectura)
+exports.apiAuditoria = async (req, res) => {
+  try {
+    const id = req.query.solicitud;
+    if (id && !/^\d+$/.test(String(id))) return res.status(400).json({ error: 'Numero de solicitud invalido' });
+    res.json(await SiteModel.historialAuditoria(id));
+  } catch (e) {
+    console.error('apiAuditoria:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // esto lo usa el js del navegador para los textos y los roles
 exports.apiPagina = (req, res) => {
   const pagina = SiteModel.getPagina(req.params.clave);

@@ -100,6 +100,7 @@ async function initAuthPage() {
         if (out.rolId === 1) destino = '/solicitante';
         if (out.rolId === 2) destino = '/agente';
         if (out.rolId === 3) destino = '/coordinador';
+        if (out.rolId === 4) destino = '/auditor';
         window.location.href = destino;
         return;
       }
@@ -637,6 +638,72 @@ async function cambiarEstado(id, estado) {
       msg.textContent = 'Solicitud #' + id + ' pasó de ' + out.anterior + ' a ' + out.nuevo + '.';
       cargarAsignadas();
     }
+  } catch (e) {
+    msg.textContent = 'Error de red.';
+  }
+}
+
+// ---------------- Sprint 3 ----------------
+
+// pagina del auditor, solo entra el rol 4, si no manda al inicio
+async function initAuditor() {
+  try {
+    const res = await fetch('/api/yo');
+    if (!res.ok) {
+      window.location.href = '/';
+      return;
+    }
+    const yo = await res.json();
+    if (yo.rolId !== 4) {
+      window.location.href = '/';
+      return;
+    }
+    document.getElementById('nombre').textContent = yo.usuario;
+  } catch (e) {
+    window.location.href = '/';
+    return;
+  }
+
+  document.getElementById('btn-salir').onclick = async () => {
+    await fetch('/api/salir', { method: 'POST' });
+    window.location.href = '/';
+  };
+
+  document.getElementById('btn-auditar').onclick = cargarAuditoria;
+  cargarAuditoria();
+}
+
+// HU11: historial de solo lectura, con el actor codificado
+async function cargarAuditoria() {
+  const cont = document.getElementById('tabla-auditoria');
+  const msg = document.getElementById('msg-auditor');
+  const id = document.getElementById('aud-solicitud').value.trim();
+  msg.textContent = '';
+  try {
+    const res = await fetch('/api/auditoria' + (id ? '?solicitud=' + encodeURIComponent(id) : ''));
+    const d = await res.json();
+    if (!res.ok) {
+      msg.textContent = 'Error: ' + d.error;
+      return;
+    }
+    cont.innerHTML = '';
+    if (d.length === 0) {
+      cont.textContent = 'Sin cambios registrados.';
+      return;
+    }
+    const tabla = document.createElement('table');
+    tabla.innerHTML = '<tr><th>Solicitud</th><th>Fecha</th><th>Actor</th><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr>';
+    d.forEach(h => {
+      const tr = document.createElement('tr');
+      [ '#' + h.solicitud_id, new Date(h.fecha).toLocaleString(), h.actor, h.campo, h.valor_anterior || '-', h.valor_nuevo || '-' ]
+        .forEach(v => {
+          const td = document.createElement('td');
+          td.textContent = v;
+          tr.appendChild(td);
+        });
+      tabla.appendChild(tr);
+    });
+    cont.appendChild(tabla);
   } catch (e) {
     msg.textContent = 'Error de red.';
   }

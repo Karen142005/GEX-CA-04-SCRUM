@@ -405,6 +405,25 @@ module.exports = {
     }
   },
 
+  // HU11 y cambio 2: historial para el auditor, solo lectura
+  // el actor sale con su codigo (no con su nombre) y el texto libre no se muestra
+  historialAuditoria: async (solicitudId) => {
+    const params = [];
+    let where = '';
+    if (solicitudId) { params.push(Number(solicitudId)); where = ' WHERE h.solicitud_id = $1'; }
+    const r = await pool.query(
+      "SELECT h.solicitud_id, COALESCE(u.codigo, 'Desconocido') AS actor, h.fecha, h.campo, " +
+      "CASE WHEN h.campo IN ('reapertura', 'justificacion') THEN '(texto libre, no se muestra)' ELSE h.valor_anterior END AS valor_anterior, " +
+      "CASE WHEN h.campo IN ('reapertura', 'justificacion') THEN '(texto libre, no se muestra)' " +
+      "WHEN h.campo = 'agente' THEN COALESCE(ua.codigo, h.valor_nuevo) ELSE h.valor_nuevo END AS valor_nuevo " +
+      'FROM historial_cambios h LEFT JOIN usuarios u ON u.nombre_usuario = h.usuario ' +
+      "LEFT JOIN usuarios ua ON h.campo = 'agente' AND ua.nombre_usuario = h.valor_nuevo" +
+      where + ' ORDER BY h.id DESC LIMIT 500',
+      params
+    );
+    return r.rows;
+  },
+
   // historial de cambios de una solicitud, lo mas nuevo primero
   historialSolicitud: async (id) => {
     const r = await pool.query(

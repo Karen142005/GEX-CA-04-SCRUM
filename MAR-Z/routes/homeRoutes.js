@@ -59,6 +59,20 @@ function soloAgenteApi(req, res, next) {
   next();
 }
 
+// solo el auditor entra a su pagina
+function soloAuditor(req, res, next) {
+  if (Number(req.session.user.rolId) !== 4) return res.redirect('/');
+  next();
+}
+
+// lo mismo pero para apis
+function soloAuditorApi(req, res, next) {
+  if (Number(req.session.user.rolId) !== 4) {
+    return res.status(403).json({ error: 'Solo el auditor hace esto' });
+  }
+  next();
+}
+
 // las paginas
 router.get('/', homeController.index);
 router.get('/roles/:id', homeController.rolDetalle);
@@ -67,6 +81,7 @@ router.get('/roles/:id/registro', homeController.registroPage);
 router.get('/solicitante', pedirLogin, soloSolicitante, homeController.solicitante);
 router.get('/coordinador', pedirLogin, soloCoordinador, homeController.coordinador);
 router.get('/agente', pedirLogin, soloAgente, homeController.agente);
+router.get('/auditor', pedirLogin, soloAuditor, homeController.auditor);
 
 // los datos en json que usa el main.js
 router.get('/api/pagina/:clave', homeController.apiPagina);
@@ -93,5 +108,8 @@ router.post('/api/solicitudes/:id/comentarios', pedirLogin, soloAgenteApi, homeC
 router.get('/api/solicitudes/:id/comentarios', pedirLogin, homeController.apiComentarios);
 router.put('/api/solicitudes/:id/estado', pedirLogin, soloAgenteApi, homeController.apiCambiarEstado);
 router.put('/api/solicitudes/:id/cierre', pedirLogin, soloSolicitanteCierre, homeController.apiCierre);
+
+// sprint 3 (el auditor solo tiene rutas GET: solo lectura)
+router.get('/api/auditoria', pedirLogin, soloAuditorApi, homeController.apiAuditoria);
 
 module.exports = router;
