@@ -6,7 +6,7 @@ async function cargarPagina(clave) {
     const data = await res.json();
     document.getElementById('titulo').textContent = data.titulo;
     document.getElementById('descripcion').textContent = data.descripcion;
-    document.title = `MAR-Z | ${data.titulo}`;
+    document.title = `SUPPORT 360° | ${data.titulo}`;
   } catch (e) {
     document.getElementById('titulo').textContent = 'Error al cargar';
   }
@@ -43,7 +43,7 @@ async function initRolPage() {
     const r = await res.json();
     document.getElementById('titulo').textContent = r.nombre;
     document.getElementById('descripcion').textContent = r.descripcion || '';
-    document.title = `MAR-Z | ${r.nombre}`;
+    document.title = `SUPPORT 360° | ${r.nombre}`;
   } catch (e) {
     document.getElementById('titulo').textContent = 'Rol no encontrado';
     return;
@@ -70,7 +70,7 @@ async function initAuthPage() {
     const nombres = document.querySelectorAll('.rol-nombre');
     nombres.forEach(el => { el.textContent = r.nombre; });
     document.querySelector('input[name="rolId"]').value = r.id;
-    document.title = `MAR-Z | ${r.nombre}`;
+    document.title = `SUPPORT 360° | ${r.nombre}`;
   } catch (e) {
     document.getElementById('titulo').textContent = 'Rol no encontrado';
     return;
@@ -836,3 +836,18 @@ async function cargarAuditoria() {
     msg.textContent = 'Error de red.';
   }
 }
+
+// pinta los mensajes: verde si es confirmacion, rojo si empieza con Error
+function pintarMsg(el) {
+  if (!el) return;
+  const t = (el.textContent || '').trim();
+  el.classList.remove('msg-ok', 'msg-error');
+  if (!t) return;
+  el.classList.add(/^error/i.test(t) ? 'msg-error' : 'msg-ok');
+}
+['msg-sol', 'msg-det', 'msg-coord', 'msg-agente', 'msg-auditor', 'msg-auth', 'msg'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  new MutationObserver(() => pintarMsg(el)).observe(el, { childList: true, characterData: true, subtree: true });
+  pintarMsg(el);
+});

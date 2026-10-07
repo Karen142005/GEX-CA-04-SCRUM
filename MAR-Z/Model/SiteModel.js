@@ -46,7 +46,7 @@ function celdaCsv(v) {
 
 const paginas = {
   inicio: {
-    titulo: 'Bienvenido a MAR-Z',
+    titulo: 'Bienvenido a SUPPORT 360°',
     descripcion: ''
   },
   nosotros: {
