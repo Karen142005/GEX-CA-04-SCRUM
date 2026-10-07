@@ -196,7 +196,8 @@ let detalleId = null;
 
 // HU08: manda la confirmacion o la reapertura con su motivo
 async function cierre(accion) {
-  const msg = document.getElementById('msg-sol');
+  // el mensaje sale dentro del detalle, para que se vea aunque el formulario este cerrado
+  const msg = document.getElementById('msg-det');
   const motivo = document.getElementById('motivo-reabrir').value;
   try {
     const res = await fetch('/api/solicitudes/' + detalleId + '/cierre', {
@@ -247,6 +248,7 @@ async function cargarHistorial() {
 
 // abre el detalle de una solicitud con su estado y fechas
 async function verDetalle(id) {
+  if (id !== detalleId) document.getElementById('msg-det').textContent = '';
   try {
     const res = await fetch('/api/solicitudes/' + id);
     if (!res.ok) throw new Error();
