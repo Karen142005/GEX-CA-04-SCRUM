@@ -273,6 +273,23 @@ exports.auditor = (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'View', 'auditor.html'));
 };
 
+// sprint 3: lee los filtros de la direccion (?estado=...&prioridad=...&categoria=...&texto=...)
+function leerFiltros(q) {
+  const t = (v) => (typeof v === 'string' ? v.trim().slice(0, 100) : '');
+  return { estado: t(q.estado), prioridad: t(q.prioridad), categoria: t(q.categoria), texto: t(q.texto) };
+}
+
+// HU09: buscar y filtrar segun el rol del que pregunta
+exports.apiBuscar = async (req, res) => {
+  try {
+    const u = req.session.user;
+    res.json(await SiteModel.buscarSolicitudes(leerFiltros(req.query), u.usuario, u.rolId));
+  } catch (e) {
+    console.error('apiBuscar:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // HU11: historial para el auditor (solo lectura)
 exports.apiAuditoria = async (req, res) => {
   try {

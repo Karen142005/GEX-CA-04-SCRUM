@@ -22,6 +22,21 @@ function validarAlta(justificacion, fechaObjetivo) {
   return { justificacion: j, fechaObjetivo: f };
 }
 
+// sprint 3: arma el WHERE de los filtros (estado, prioridad, categoria y texto)
+// siempre con parametros ($1, $2...), nunca pegando el texto en el SQL
+function armarFiltros(f, params, alias) {
+  const a = alias ? alias + '.' : '';
+  const cond = [];
+  if (f.estado) { params.push(f.estado); cond.push(a + 'estado = $' + params.length); }
+  if (f.prioridad) { params.push(f.prioridad); cond.push(a + 'prioridad = $' + params.length); }
+  if (f.categoria) { params.push(f.categoria); cond.push(a + 'categoria = $' + params.length); }
+  if (f.texto && f.texto.trim()) {
+    params.push('%' + f.texto.trim() + '%');
+    cond.push('(' + a + 'titulo ILIKE $' + params.length + ' OR ' + a + 'descripcion ILIKE $' + params.length + ')');
+  }
+  return cond;
+}
+
 const paginas = {
   inicio: {
     titulo: 'Bienvenido a MAR-Z',
@@ -403,6 +418,23 @@ module.exports = {
     } finally {
       cli.release();
     }
+  },
+
+  // HU09: busca por texto y filtra, respetando permisos
+  // solicitante: solo las suyas; agente: solo sus asignadas; coordinador y auditor: todas
+  buscarSolicitudes: async (f, usuario, rolId) => {
+    const params = [];
+    const cond = armarFiltros(f || {}, params, '');
+    const rol = Number(rolId);
+    if (rol === 1) { params.push(usuario); cond.push('propietario = $' + params.length); }
+    else if (rol === 2) { params.push(usuario); cond.push('agente = $' + params.length); }
+    else if (rol !== 3 && rol !== 4) return [];
+    const where = cond.length ? ' WHERE ' + cond.join(' AND ') : '';
+    const r = await pool.query(
+      'SELECT id, titulo, categoria, estado, prioridad, fecha, fecha_actualizacion FROM solicitudes' + where + ' ORDER BY id DESC',
+      params
+    );
+    return r.rows;
   },
 
   // HU11 y cambio 2: historial para el auditor, solo lectura

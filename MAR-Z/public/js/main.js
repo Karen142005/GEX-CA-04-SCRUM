@@ -191,6 +191,7 @@ async function initSolicitante() {
   document.getElementById('btn-reabrir').onclick = () => { cierre('reabrir'); };
 
   cargarAvisos();
+  initBuscador();
 }
 
 let detalleId = null;
@@ -295,6 +296,7 @@ async function initCoordinador() {
   };
 
   document.getElementById('orden').onchange = () => { cargarTodas(); };
+  initBuscador();
   // los agentes activos se piden una vez para armar el selector de asignar
   try {
     const r = await fetch('/api/agentes');
@@ -495,6 +497,7 @@ async function initAgente() {
 
   cargarAvisos();
   cargarAsignadas();
+  initBuscador();
 }
 
 // HU05: avisos dentro de la aplicacion
@@ -645,6 +648,82 @@ async function cambiarEstado(id, estado) {
 
 // ---------------- Sprint 3 ----------------
 
+// arma los filtros (estado, prioridad, categoria y texto) dentro de un contenedor
+function armarFiltros(cont, alAplicar) {
+  if (!cont) return;
+  const opciones = (nombre, lista) => {
+    const sel = document.createElement('select');
+    sel.name = nombre;
+    const todos = document.createElement('option');
+    todos.value = '';
+    todos.textContent = nombre.charAt(0).toUpperCase() + nombre.slice(1) + ': todos';
+    sel.appendChild(todos);
+    lista.forEach(v => {
+      const op = document.createElement('option');
+      op.value = v;
+      op.textContent = v;
+      sel.appendChild(op);
+    });
+    return sel;
+  };
+  cont.appendChild(opciones('estado', ['Nuevo', 'Asignada', 'En progreso', 'Resuelta', 'Reabierta', 'Cerrada']));
+  cont.appendChild(opciones('prioridad', ['Alta', 'Media', 'Baja']));
+  const cat = document.createElement('input');
+  cat.name = 'categoria';
+  cat.placeholder = 'Categoría';
+  cont.appendChild(cat);
+  if (cont.dataset.texto === 'si') {
+    const txt = document.createElement('input');
+    txt.name = 'texto';
+    txt.placeholder = 'Buscar en título o descripción';
+    cont.appendChild(txt);
+  }
+  if (alAplicar) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Aplicar';
+    btn.onclick = alAplicar;
+    cont.appendChild(btn);
+  }
+}
+
+// convierte los filtros de un contenedor en ?estado=...&prioridad=...
+function leerFiltros(cont) {
+  const q = new URLSearchParams();
+  cont.querySelectorAll('select, input').forEach(el => {
+    if (el.value.trim()) q.set(el.name, el.value.trim());
+  });
+  return q.toString();
+}
+
+// HU09: buscador que respeta los permisos de cada rol (los aplica el servidor)
+function initBuscador() {
+  const cont = document.getElementById('filtros-buscar');
+  if (!cont) return;
+  armarFiltros(cont, buscar);
+}
+
+async function buscar() {
+  const ul = document.getElementById('resultados-buscar');
+  try {
+    const res = await fetch('/api/buscar?' + leerFiltros(document.getElementById('filtros-buscar')));
+    if (!res.ok) throw new Error();
+    const lista = await res.json();
+    ul.innerHTML = '';
+    if (lista.length === 0) {
+      ul.innerHTML = '<li>No hay resultados.</li>';
+      return;
+    }
+    lista.forEach(s => {
+      const li = document.createElement('li');
+      li.textContent = '#' + s.id + ' ' + s.titulo + ' (' + s.estado + ', ' + s.prioridad + ', ' + s.categoria + ')';
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    ul.innerHTML = '<li>Error al buscar.</li>';
+  }
+}
+
 // pagina del auditor, solo entra el rol 4, si no manda al inicio
 async function initAuditor() {
   try {
@@ -670,6 +749,7 @@ async function initAuditor() {
   };
 
   document.getElementById('btn-auditar').onclick = cargarAuditoria;
+  initBuscador();
   cargarAuditoria();
 }
 

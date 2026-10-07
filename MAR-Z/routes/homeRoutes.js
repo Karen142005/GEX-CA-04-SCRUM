@@ -110,6 +110,7 @@ router.put('/api/solicitudes/:id/estado', pedirLogin, soloAgenteApi, homeControl
 router.put('/api/solicitudes/:id/cierre', pedirLogin, soloSolicitanteCierre, homeController.apiCierre);
 
 // sprint 3 (el auditor solo tiene rutas GET: solo lectura)
+router.get('/api/buscar', pedirLogin, homeController.apiBuscar);
 router.get('/api/auditoria', pedirLogin, soloAuditorApi, homeController.apiAuditoria);
 
 module.exports = router;
