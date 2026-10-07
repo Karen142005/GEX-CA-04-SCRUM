@@ -24,3 +24,25 @@ form input[type="text"], form input[type="password"] {
   display: block; width: 100%; max-width: 300px;
   padding: 8px; margin-top: 4px; box-sizing: border-box;
 }
+
+/* sprint 3: paneles de cada rol con el mismo diseño del inicio */
+main h1 { margin-top: 0; }
+main button, #btn-salir {
+  font-family: inherit; font-size: 0.95rem; padding: 6px 12px; margin: 2px;
+  border: none; border-radius: 6px; background: #0366d6; color: #fff; cursor: pointer;
+}
+main button:hover { background: #0256b5; }
+#btn-salir { background: #6c757d; }
+main input, main select, main textarea {
+  font-family: inherit; font-size: 0.95rem; padding: 6px; margin: 2px;
+  border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;
+}
+main textarea { width: 100%; max-width: 420px; min-height: 60px; }
+.panel, #form-solicitud-wrap, #lista-sol-wrap, #detalle-sol-wrap {
+  border: 1px solid #e3e3e3; border-radius: 8px; padding: 12px 16px; margin: 16px 0; background: #fff;
+}
+.filtros { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+th { background: #f1f5fb; }
+#msg-sol, #msg-det, #msg-coord, #msg-agente, #msg-auditor { color: #0256b5; font-weight: bold; }

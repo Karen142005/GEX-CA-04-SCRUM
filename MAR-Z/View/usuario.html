@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solicitante</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+<main>
     <h1>Solicitante</h1>
     <h2>Bienvenido <span id="nombre">...</span></h2>
     <button id="btn-salir">Cerrar Sesión</button>
@@ -17,8 +19,6 @@
         <h1>¿Que desea hacer?</h1>
         <div>
             <button type="button" id="btn-crear">Crear Solicitud de Soporte</button>
-            <button type="button">Modificar Solicitud de Soporte</button>
-            <button type="button">Cancelar Solicitud de Soporte</button>
             <button type="button" id="btn-historial">Ver Historial de Solicitudes</button>
         </div>
     </div>
@@ -84,6 +84,7 @@
         <div id="filtros-buscar" class="filtros" data-texto="si"></div>
         <ul id="resultados-buscar"></ul>
     </div>
+</main>
     <script src="/js/main.js"></script>
     <script>
         initSolicitante();
