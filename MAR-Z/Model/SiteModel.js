@@ -437,6 +437,32 @@ module.exports = {
     return r.rows;
   },
 
+  // HU10: indicadores agregados (sin datos por persona, sin ranking)
+  // volumen por estado y tiempo mediano de ciclo (de creada a Cerrada) en horas
+  indicadores: async (f) => {
+    const p1 = [];
+    const c1 = armarFiltros(f || {}, p1, '');
+    const w1 = c1.length ? ' WHERE ' + c1.join(' AND ') : '';
+    const vol = await pool.query(
+      'SELECT estado, COUNT(*)::int AS total FROM solicitudes' + w1 + ' GROUP BY estado ORDER BY estado', p1
+    );
+    const p2 = [];
+    const c2 = armarFiltros(f || {}, p2, 's');
+    const w2 = c2.length ? ' WHERE ' + c2.join(' AND ') : '';
+    const med = await pool.query(
+      'SELECT COUNT(*)::int AS cerradas, ' +
+      'ROUND((percentile_cont(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (h.cierre - s.fecha)) / 3600))::numeric, 2) AS mediana_horas ' +
+      'FROM solicitudes s JOIN (SELECT solicitud_id, MAX(fecha) AS cierre FROM historial_cambios ' +
+      "WHERE campo = 'estado' AND valor_nuevo = 'Cerrada' GROUP BY solicitud_id) h ON h.solicitud_id = s.id" + w2,
+      p2
+    );
+    return {
+      volumen: vol.rows,
+      cerradas: med.rows[0].cerradas,
+      mediana_horas: med.rows[0].mediana_horas === null ? null : Number(med.rows[0].mediana_horas)
+    };
+  },
+
   // HU11 y cambio 2: historial para el auditor, solo lectura
   // el actor sale con su codigo (no con su nombre) y el texto libre no se muestra
   historialAuditoria: async (solicitudId) => {

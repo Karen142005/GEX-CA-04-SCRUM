@@ -290,6 +290,17 @@ exports.apiBuscar = async (req, res) => {
   }
 };
 
+// HU10: indicadores agregados para el coordinador
+exports.apiIndicadores = async (req, res) => {
+  try {
+    const f = leerFiltros(req.query);
+    res.json({ filtros: f, ...(await SiteModel.indicadores(f)) });
+  } catch (e) {
+    console.error('apiIndicadores:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // HU11: historial para el auditor (solo lectura)
 exports.apiAuditoria = async (req, res) => {
   try {

@@ -111,6 +111,7 @@ router.put('/api/solicitudes/:id/cierre', pedirLogin, soloSolicitanteCierre, hom
 
 // sprint 3 (el auditor solo tiene rutas GET: solo lectura)
 router.get('/api/buscar', pedirLogin, homeController.apiBuscar);
+router.get('/api/indicadores', pedirLogin, soloCoordinadorApi, homeController.apiIndicadores);
 router.get('/api/auditoria', pedirLogin, soloAuditorApi, homeController.apiAuditoria);
 
 module.exports = router;

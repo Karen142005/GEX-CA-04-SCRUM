@@ -297,6 +297,9 @@ async function initCoordinador() {
 
   document.getElementById('orden').onchange = () => { cargarTodas(); };
   initBuscador();
+  // HU10: indicadores
+  armarFiltros(document.getElementById('filtros-ind'), cargarIndicadores);
+  cargarIndicadores();
   // los agentes activos se piden una vez para armar el selector de asignar
   try {
     const r = await fetch('/api/agentes');
@@ -721,6 +724,46 @@ async function buscar() {
     });
   } catch (e) {
     ul.innerHTML = '<li>Error al buscar.</li>';
+  }
+}
+
+// HU10: indicadores agregados, sin datos por persona
+async function cargarIndicadores() {
+  const cont = document.getElementById('indicadores');
+  const q = leerFiltros(document.getElementById('filtros-ind'));
+  try {
+    const res = await fetch('/api/indicadores?' + q);
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    cont.innerHTML = '';
+    const p = document.createElement('p');
+    p.textContent = 'Filtros aplicados: ' + (q ? decodeURIComponent(q.replace(/&/g, ', ').replace(/\+/g, ' ')) : 'ninguno');
+    cont.appendChild(p);
+    const tabla = document.createElement('table');
+    tabla.innerHTML = '<tr><th>Estado</th><th>Solicitudes</th></tr>';
+    let total = 0;
+    d.volumen.forEach(v => {
+      const tr = document.createElement('tr');
+      const a = document.createElement('td');
+      a.textContent = v.estado;
+      const b = document.createElement('td');
+      b.textContent = v.total;
+      tr.appendChild(a);
+      tr.appendChild(b);
+      tabla.appendChild(tr);
+      total += v.total;
+    });
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><strong>Total</strong></td><td><strong>' + total + '</strong></td>';
+    tabla.appendChild(tr);
+    cont.appendChild(tabla);
+    const m = document.createElement('p');
+    m.textContent = d.mediana_horas === null
+      ? 'Tiempo mediano de ciclo: sin solicitudes cerradas todavía.'
+      : 'Tiempo mediano de ciclo (de creada a cerrada): ' + d.mediana_horas + ' horas, sobre ' + d.cerradas + ' solicitudes cerradas.';
+    cont.appendChild(m);
+  } catch (e) {
+    cont.textContent = 'Error al cargar los indicadores.';
   }
 }
 
