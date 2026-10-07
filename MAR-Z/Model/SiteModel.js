@@ -37,6 +37,13 @@ function armarFiltros(f, params, alias) {
   return cond;
 }
 
+// HU12 y cambio 2: un valor de CSV seguro (comillas escapadas y sin formulas de Excel)
+function celdaCsv(v) {
+  let t = v === null || v === undefined ? '' : String(v);
+  if (/^[=+\-@]/.test(t)) t = "'" + t;
+  return '"' + t.replace(/"/g, '""') + '"';
+}
+
 const paginas = {
   inicio: {
     titulo: 'Bienvenido a MAR-Z',
@@ -480,6 +487,32 @@ module.exports = {
       params
     );
     return r.rows;
+  },
+
+  // HU12 y cambio 2: reporte CSV con filtros, sin credenciales ni texto libre
+  // el agente sale con su codigo y la exportacion queda registrada
+  exportarCsv: async (f, usuario) => {
+    const params = [];
+    const cond = armarFiltros(f || {}, params, 's');
+    const where = cond.length ? ' WHERE ' + cond.join(' AND ') : '';
+    const r = await pool.query(
+      'SELECT s.id, s.categoria, s.estado, s.prioridad, s.fecha, s.fecha_actualizacion, u.codigo AS agente ' +
+      'FROM solicitudes s LEFT JOIN usuarios u ON u.nombre_usuario = s.agente' + where + ' ORDER BY s.id',
+      params
+    );
+    const cab = ['id', 'categoria', 'estado', 'prioridad', 'fecha_creacion', 'ultima_actualizacion', 'agente_codigo'];
+    const filas = r.rows.map(x => [
+      x.id, x.categoria, x.estado, x.prioridad,
+      new Date(x.fecha).toISOString(), new Date(x.fecha_actualizacion).toISOString(), x.agente
+    ].map(celdaCsv).join(','));
+    const filtrosTxt = JSON.stringify({
+      estado: f.estado || '', prioridad: f.prioridad || '', categoria: f.categoria || '', texto: f.texto || ''
+    });
+    await pool.query(
+      'INSERT INTO exportaciones (usuario, filtros, filas) VALUES ($1, $2, $3)',
+      [usuario, filtrosTxt, r.rows.length]
+    );
+    return '﻿' + [cab.map(celdaCsv).join(',')].concat(filas).join('\r\n') + '\r\n';
   },
 
   // historial de cambios de una solicitud, lo mas nuevo primero

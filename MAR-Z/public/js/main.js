@@ -300,6 +300,11 @@ async function initCoordinador() {
   // HU10: indicadores
   armarFiltros(document.getElementById('filtros-ind'), cargarIndicadores);
   cargarIndicadores();
+  // HU12: exportar con los filtros elegidos
+  armarFiltros(document.getElementById('filtros-csv'), null);
+  document.getElementById('btn-exportar').onclick = () => {
+    window.location.href = '/api/reporte?' + leerFiltros(document.getElementById('filtros-csv'));
+  };
   // los agentes activos se piden una vez para armar el selector de asignar
   try {
     const r = await fetch('/api/agentes');

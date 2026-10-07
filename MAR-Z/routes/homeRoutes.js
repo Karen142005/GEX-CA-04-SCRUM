@@ -113,5 +113,6 @@ router.put('/api/solicitudes/:id/cierre', pedirLogin, soloSolicitanteCierre, hom
 router.get('/api/buscar', pedirLogin, homeController.apiBuscar);
 router.get('/api/indicadores', pedirLogin, soloCoordinadorApi, homeController.apiIndicadores);
 router.get('/api/auditoria', pedirLogin, soloAuditorApi, homeController.apiAuditoria);
+router.get('/api/reporte', pedirLogin, soloCoordinadorApi, homeController.apiReporte);
 
 module.exports = router;

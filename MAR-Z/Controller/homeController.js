@@ -313,6 +313,19 @@ exports.apiAuditoria = async (req, res) => {
   }
 };
 
+// HU12: descarga el reporte CSV
+exports.apiReporte = async (req, res) => {
+  try {
+    const csv = await SiteModel.exportarCsv(leerFiltros(req.query), req.session.user.usuario);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="reporte_solicitudes.csv"');
+    res.send(csv);
+  } catch (e) {
+    console.error('apiReporte:', e.message);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
+};
+
 // esto lo usa el js del navegador para los textos y los roles
 exports.apiPagina = (req, res) => {
   const pagina = SiteModel.getPagina(req.params.clave);
